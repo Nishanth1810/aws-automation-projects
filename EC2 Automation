@@ -1,0 +1,82 @@
+~ $ aws ec2 create-key-pair \
+>   --region us-east-1 \
+>   --key-name demo-key \
+>   --query 'KeyMaterial' \
+>   --output text > demo-key.pem
+~ $ 
+~ $ chmod 400 demo-key.pem
+~ $ 
+~ $ #!/bin/bash
+~ $ 
+~ $ REGION="us-east-1"
+~ $ INSTANCE_NAME="DemoInstance"
+~ $ INSTANCE_TYPE="t3.micro"
+~ $ KEY_NAME="demo-key"
+~ $ SECURITY_GROUP_NAME="demo-sg"
+~ $ 
+~ $ echo "Fetching latest Amazon Linux 2023 AMI..."
+Fetching latest Amazon Linux 2023 AMI...
+~ $ AMI_ID=$(aws ssm get-parameters \
+>   --region $REGION \
+>   --names /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64 \
+>   --query "Parameters[0].Value" \
+>   --output text)
+~ $ 
+~ $ echo "Getting default VPC..."
+Getting default VPC...
+~ $ VPC_ID=$(aws ec2 describe-vpcs \
+>   --region $REGION \
+~ $ VPC_ID=$(aws ec2 describe-vpcs \
+>   --region $REGION \
+>   --query "Vpcs[0].VpcId" \
+>   --output text)
+~ $ 
+~ $ echo "Checking security group..."
+Checking security group...
+~ $ SG_ID=$(aws ec2 describe-security-groups \
+>   --region $REGION \
+>   --filters Name=group-name,Values=$SECURITY_GROUP_NAME Name=vpc-id,Values=$VPC_ID \
+>   --query "SecurityGroups[0].GroupId" \
+>   --output text)
+~ $ 
+~ $ if [ "$SG_ID" == "None" ] || [ -z "$SG_ID" ]; then
+>   echo "Creating security group..."
+>   SG_ID=$(aws ec2 create-security-group \
+>     --region $REGION \
+>     --group-name $SECURITY_GROUP_NAME \
+>     --description "Allow HTTP access" \
+>     --vpc-id $VPC_ID \
+>     --query "GroupId" \
+>     --output text)
+> 
+>   echo "Authorizing HTTP access..."
+>   aws ec2 authorize-security-group-ingress \
+>     --region $REGION \
+>     --group-id $SG_ID \
+>     --protocol tcp --port 80 --cidr 0.0.0.0/0
+> else
+>   echo "Security group already exists: $SG_ID"
+> fi
+Security group already exists: sg-04152ef0af444eb95
+~ $ 
+~ $ echo "Launching EC2 instance..."
+Launching EC2 instance...
+~ $ INSTANCE_ID=$(aws ec2 run-instances \
+>   --region $REGION \
+>   --image-id $AMI_ID \
+>   --instance-type $INSTANCE_TYPE \
+>   --key-name $KEY_NAME \
+>   --security-group-ids $SG_ID \
+>   --count 1 \
+>   --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$INSTANCE_NAME}]" \
+>   --query "Instances[0].InstanceId" \
+>   --output text)
+~ $ 
+~ $ echo "Waiting for instance to start..."
+Waiting for instance to start...
+~ $ aws ec2 wait instance-running \
+>   --region $REGION \
+>   --instance-ids $INSTANCE_ID
+~ $ 
+~ $ echo "✅ Instance $INSTANCE_ID is running!"
+✅ Instance i-0701be4b6a5faada7 is running!
