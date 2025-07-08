@@ -6,7 +6,7 @@ This project contains an AWS Lambda function to:
 
 ## 🔧 Lambda Function Details
 
-- **Volume ID:** `vol-0203de441ca9a93f3`
+- **Volume ID:** `vol-0XXXXXXXXXXXX`
 - **Retention Period:** 3 days
 - **Language:** Python 3.12
 - **Trigger:** Scheduled daily using EventBridge (`rate(1 day)`)
